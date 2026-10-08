@@ -1,0 +1,120 @@
+/* ==========================================
+   ESTILOS OSCUROS - EMPRENDEDOR PRO
+   ========================================== */
+
+:root {
+  --bg-dark-main: #0B0F19;
+  --bg-dark-sidebar: #060911;
+  --bg-dark-card: #111827;
+  --border-color-dark: #1F2937;
+  --text-purple: #C084FC;
+}
+
+body {
+  background-color: var(--bg-dark-main);
+  color: #F3F4F6;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+}
+
+/* LAYOUT SIDEBAR */
+#wrapper {
+  min-height: 100vh;
+}
+
+#sidebar-wrapper {
+  width: 250px;
+  min-width: 250px;
+  background-color: var(--bg-dark-sidebar);
+  display: flex;
+  flex-direction: column;
+}
+
+.border-end-dark {
+  border-right: 1px solid var(--border-color-dark) !important;
+}
+
+.border-bottom-dark {
+  border-bottom: 1px solid var(--border-color-dark) !important;
+}
+
+.bg-main-dark {
+  background-color: var(--bg-dark-main) !important;
+}
+
+.bg-dark-card {
+  background-color: var(--bg-dark-card) !important;
+}
+
+/* SIDEBAR ENLACES */
+.list-group-item {
+  border: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.list-group-item:hover {
+  color: #38BDF8 !important;
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+.active-link {
+  background-color: rgba(56, 189, 248, 0.1) !important;
+  border-left: 4px solid #38BDF8;
+}
+
+/* METRICAS & CARDS */
+.text-purple {
+  color: var(--text-purple) !important;
+}
+
+.card {
+  border-radius: 0.75rem;
+}
+
+/* TABLA DE INVENTARIO */
+.table-dark {
+  --bs-table-bg: var(--bg-dark-card);
+  --bs-table-hover-bg: #1E293B;
+}
+
+.table th {
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ESCÁNER QR */
+#reader {
+  width: 100%;
+  max-width: 350px;
+  margin: 0 auto;
+  border: 2px dashed #38BDF8;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background-color: #000;
+}
+
+#reader video {
+  width: 100% !important;
+  height: auto !important;
+}
+
+/* OVERLAY SPINNER CARGANDO */
+#loading-spinner {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+}
+
+.spinner-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 9998;
+}
