@@ -1,0 +1,296 @@
+// ID estático de tu Google Sheet
+const SPREADSHEET_ID = '1bT0qYpFANE7aYdfRt16106LGbJLTZBCBnRtwYNRI8kM';
+const TASA_USD_DOP = 60;
+
+function getSpreadsheet() {
+  let ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) {
+    ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  }
+  return ss;
+}
+
+function verificarPestañas(ss) {
+  const pestañasRequeridas = [
+    { name: 'Productos', headers: ['SKU', 'Producto', 'Categoría', 'Stock Inicial', 'Stock Actual', 'Precio Compra Unit. (USD)', 'Shipping Total (USD)', 'Import Charges (USD)', 'Sales Tax (USD)', 'Payment Fee (USD)', 'Courier/Flete Local (DOP)', 'Costo Total Unit. Landed (USD)', 'Precio Venta Unit. (DOP)', 'Ganancia Estimada Unit. (DOP)', 'Margen (%)', 'URL QR Code'] },
+    { name: 'Movimientos', headers: ['ID Movimiento', 'Fecha', 'Año-Mes', 'Tipo', 'SKU', 'Producto', 'Cantidad', 'Precio Unitario (DOP)', 'Total (DOP)', 'Notas'] },
+    { name: 'Categorias', headers: ['Categorías de Productos'] }
+  ];
+
+  pestañasRequeridas.forEach(p => {
+    let sheet = ss.getSheetByName(p.name);
+    if (!sheet) {
+      sheet = ss.insertSheet(p.name);
+      sheet.appendRow(p.headers);
+      if (p.name === 'Categorias') {
+        ['Accesorios', 'Brazaletes', 'Electrónica', 'Hogar', 'Calzado'].forEach(cat => sheet.appendRow([cat]));
+      }
+    }
+  });
+}
+
+// REST API Endpoints para GitHub Pages
+function doGet(e) {
+  const action = e ? e.parameter.action : 'getInitialData';
+  let responseData = {};
+
+  try {
+    if (action === 'getInitialData') {
+      responseData = getInitialData();
+    }
+  } catch (err) {
+    responseData = { error: err.message };
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify(responseData))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  let responseData = {};
+  try {
+    const contents = JSON.parse(e.postData.contents);
+    const action = contents.action;
+    const data = contents.data;
+
+    if (action === 'guardarProducto') {
+      responseData = guardarProducto(data);
+    } else if (action === 'registrarMovimiento') {
+      responseData = registrarMovimiento(data);
+    }
+  } catch (err) {
+    responseData = { error: err.message };
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify(responseData))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getInitialData() {
+  const ss = getSpreadsheet();
+  verificarPestañas(ss);
+  
+  const sheetProd = ss.getSheetByName('Productos');
+  const prodData = sheetProd.getDataRange().getValues();
+  const productos = (prodData.length > 1) ? prodData.slice(1).map((row, index) => {
+    return { row: row, rowIndex: index + 2 };
+  }).filter(item => item.row[0] !== '').map(item => {
+    const row = item.row;
+    return {
+      rowIndex: item.rowIndex,
+      sku: String(row[0]),
+      producto: String(row[1]),
+      categoria: String(row[2] || 'Sin Categoría'),
+      stockInicial: Number(row[3]) || 0,
+      stockActual: Number(row[4]) || 0,
+      precioCompraUSD: Number(row[5]) || 0,
+      shippingUSD: Number(row[6]) || 0,
+      importChargesUSD: Number(row[7]) || 0,
+      salesTaxUSD: Number(row[8]) || 0,
+      paymentFeeUSD: Number(row[9]) || 0,
+      courierLocalDOP: Number(row[10]) || 0,
+      costoLandedUSD: Number(row[11]) || 0,
+      precioVentaDOP: Number(row[12]) || 0,
+      gananciaUnitDOP: Number(row[13]) || 0,
+      margenPct: Number(row[14]) || 0,
+      qrCodeUrl: row[15] || ''
+    };
+  }) : [];
+
+  const sheetMov = ss.getSheetByName('Movimientos');
+  let movimientos = [];
+  if (sheetMov && sheetMov.getLastRow() > 1) {
+    const movData = sheetMov.getDataRange().getValues();
+    movimientos = movData.slice(1).filter(row => row[0] !== '').map(row => {
+      let fechaFormatted = (row[1] instanceof Date) 
+        ? Utilities.formatDate(row[1], Session.getScriptTimeZone(), 'yyyy-MM-dd') 
+        : String(row[1] || '');
+      let anoMesFormatted = (row[2] instanceof Date) 
+        ? Utilities.formatDate(row[2], Session.getScriptTimeZone(), 'yyyy-MM') 
+        : String(row[2] || '');
+
+      return {
+        id: String(row[0]),
+        fecha: fechaFormatted,
+        anoMes: anoMesFormatted,
+        tipo: String(row[3]),
+        sku: String(row[4]),
+        producto: String(row[5]),
+        cantidad: Number(row[6]) || 0,
+        precioUnitDOP: Number(row[7]) || 0,
+        totalDOP: Number(row[8]) || 0,
+        notas: String(row[9] || '')
+      };
+    });
+  }
+
+  const sheetCat = ss.getSheetByName('Categorias');
+  let categorias = ['Accesorios', 'Brazaletes', 'Electrónica', 'Hogar', 'Calzado'];
+  if (sheetCat && sheetCat.getLastRow() > 1) {
+    const catData = sheetCat.getDataRange().getValues();
+    categorias = catData.slice(1).map(r => String(r[0])).filter(c => c !== '');
+  }
+
+  return { productos, movimientos, categorias };
+}
+
+function guardarProducto(data) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const ss = getSpreadsheet();
+    verificarPestañas(ss);
+    const sheet = ss.getSheetByName('Productos');
+
+    if (data.rowIndex) {
+      const row = Number(data.rowIndex);
+      const actuales = sheet.getRange(row, 1, 1, 16).getValues()[0];
+      const stockInicialAnterior = Number(actuales[3]) || 0;
+      const stockActualAnterior = Number(actuales[4]) || 0;
+      const nuevoStockInicial = Number(data.stockInicial) || 0;
+
+      let nuevoStockActual = stockActualAnterior + (nuevoStockInicial - stockInicialAnterior);
+      if (nuevoStockActual < 0) nuevoStockActual = 0;
+
+      const courierLocal = (actuales[10] !== '' && actuales[10] !== null) ? actuales[10] : (data.courierLocalDOP || 0);
+      const qrUrl = data.qrCodeUrl || actuales[15] || '';
+
+      sheet.getRange(row, 1, 1, 16).setValues([[
+        data.sku,
+        data.producto,
+        data.categoria,
+        nuevoStockInicial,
+        nuevoStockActual,
+        data.precioCompraUSD,
+        data.shippingUSD,
+        data.importChargesUSD,
+        data.salesTaxUSD,
+        data.paymentFeeUSD,
+        courierLocal,
+        data.costoLandedUSD,
+        data.precioVentaDOP,
+        `=(M${row}-(L${row}*${TASA_USD_DOP}))`,
+        `=IF(M${row}=0,0,(N${row}/M${row})*100)`,
+        qrUrl
+      ]]);
+    } else {
+      const skuNuevo = String(data.sku).trim().toUpperCase();
+      const existentes = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues() : [];
+      if (existentes.some(r => String(r[0]).trim().toUpperCase() === skuNuevo)) {
+        throw new Error('Ya existe un producto con el SKU ' + data.sku);
+      }
+
+      const nextRow = sheet.getLastRow() + 1;
+      sheet.appendRow([
+        data.sku,
+        data.producto,
+        data.categoria,
+        data.stockInicial,
+        data.stockInicial,
+        data.precioCompraUSD,
+        data.shippingUSD,
+        data.importChargesUSD,
+        data.salesTaxUSD,
+        data.paymentFeeUSD,
+        data.courierLocalDOP,
+        data.costoLandedUSD,
+        data.precioVentaDOP,
+        `=(M${nextRow}-(L${nextRow}*${TASA_USD_DOP}))`,
+        `=IF(M${nextRow}=0,0,(N${nextRow}/M${nextRow})*100)`,
+        ''
+      ]);
+      
+      const sheetMov = ss.getSheetByName('Movimientos');
+      if (sheetMov) {
+        const fechaActual = new Date();
+        const anoMes = Utilities.formatDate(fechaActual, Session.getScriptTimeZone(), 'yyyy-MM');
+        sheetMov.appendRow([
+          'MOV-' + Date.now(),
+          fechaActual,
+          "'" + anoMes,
+          'Entrada',
+          data.sku,
+          data.producto,
+          data.stockInicial,
+          data.costoLandedUSD * TASA_USD_DOP,
+          data.stockInicial * data.costoLandedUSD * TASA_USD_DOP,
+          'Registro inicial de mercancía'
+        ]);
+      }
+    }
+  } finally {
+    lock.releaseLock();
+  }
+  return getInitialData();
+}
+
+function registrarMovimiento(data) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const ss = getSpreadsheet();
+    verificarPestañas(ss);
+    const sheetProd = ss.getSheetByName('Productos');
+    const sheetMov = ss.getSheetByName('Movimientos');
+
+    const ultimaFila = sheetProd.getLastRow();
+    if (ultimaFila < 2) throw new Error('No hay productos registrados.');
+
+    const skus = sheetProd.getRange(2, 1, ultimaFila - 1, 1).getValues();
+    const skuBuscado = String(data.sku).trim().toUpperCase();
+    let fila = -1;
+    for (let i = 0; i < skus.length; i++) {
+      if (String(skus[i][0]).trim().toUpperCase() === skuBuscado) {
+        fila = i + 2;
+        break;
+      }
+    }
+    if (fila === -1) throw new Error('SKU no encontrado: ' + data.sku);
+
+    const cantidad = Number(data.cantidad) || 0;
+    if (cantidad <= 0) throw new Error('La cantidad debe ser mayor que cero.');
+
+    const filaDatos = sheetProd.getRange(fila, 1, 1, 16).getValues()[0];
+    const stockActual = Number(filaDatos[4]) || 0;
+    const costoLandedUSD = Number(filaDatos[11]) || 0;
+    const precioVentaDOP = Number(filaDatos[12]) || 0;
+    const nombreProducto = String(filaDatos[1]);
+
+    let nuevoStock;
+    let precioUnit;
+    if (data.tipo === 'Venta') {
+      if (cantidad > stockActual) {
+        throw new Error('Stock insuficiente. Disponible: ' + stockActual + ', solicitado: ' + cantidad);
+      }
+      nuevoStock = stockActual - cantidad;
+      precioUnit = Number(data.precioUnitDOP) || precioVentaDOP;
+    } else if (data.tipo === 'Entrada') {
+      nuevoStock = stockActual + cantidad;
+      precioUnit = costoLandedUSD * TASA_USD_DOP;
+    } else {
+      throw new Error('Tipo de movimiento no válido: ' + data.tipo);
+    }
+
+    sheetProd.getRange(fila, 5).setValue(nuevoStock);
+
+    const fechaActual = new Date();
+    const anoMes = Utilities.formatDate(fechaActual, Session.getScriptTimeZone(), 'yyyy-MM');
+    sheetMov.appendRow([
+      'MOV-' + Date.now(),
+      fechaActual,
+      "'" + anoMes,
+      data.tipo,
+      filaDatos[0],
+      nombreProducto,
+      cantidad,
+      precioUnit,
+      cantidad * precioUnit,
+      data.notas || ''
+    ]);
+  } finally {
+    lock.releaseLock();
+  }
+  return getInitialData();
+}
