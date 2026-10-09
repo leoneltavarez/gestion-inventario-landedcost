@@ -1,0 +1,146 @@
+:root {
+  --bg-dark-main: #0B0F19;
+  --bg-dark-sidebar: #060911;
+  --bg-dark-card: #111827;
+  --border-color-dark: #1F2937;
+  --text-purple: #C084FC;
+}
+
+body {
+  background-color: var(--bg-dark-main);
+  color: #F3F4F6;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+}
+
+#wrapper {
+  min-height: 100vh;
+}
+
+#sidebar-wrapper {
+  width: 250px;
+  min-width: 250px;
+  background-color: var(--bg-dark-sidebar);
+  display: flex;
+  flex-direction: column;
+}
+
+.border-end-dark {
+  border-right: 1px solid var(--border-color-dark) !important;
+}
+
+.border-bottom-dark {
+  border-bottom: 1px solid var(--border-color-dark) !important;
+}
+
+.bg-main-dark {
+  background-color: var(--bg-dark-main) !important;
+}
+
+.bg-dark-card {
+  background-color: var(--bg-dark-card) !important;
+}
+
+.list-group-item {
+  border: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.list-group-item:hover {
+  color: #38BDF8 !important;
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+.active-link {
+  background-color: rgba(56, 189, 248, 0.1) !important;
+  border-left: 4px solid #38BDF8;
+  color: #ffffff !important;
+}
+
+.text-purple {
+  color: var(--text-purple) !important;
+}
+
+.card {
+  border-radius: 0.75rem;
+}
+
+/* TABLA CON SCROLL DE ALTURA MÁXIMA */
+.table-scroll-container {
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.table-dark {
+  --bs-table-bg: var(--bg-dark-card);
+  --bs-table-hover-bg: #1E293B;
+}
+
+.table th {
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+#reader {
+  width: 100%;
+  max-width: 350px;
+  margin: 0 auto;
+  border: 2px dashed #38BDF8;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background-color: #000;
+}
+
+#reader video {
+  width: 100% !important;
+  height: auto !important;
+}
+
+#loading-spinner {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+}
+
+.spinner-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 9998;
+}
+
+/* FORMATO DE IMPRESIÓN EXCLUSIVO DE ETIQUETA */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #print-area-container, #print-area-container * {
+    visibility: visible !important;
+  }
+  #print-area-container {
+    position: fixed;
+    left: 50%;
+    top: 20px;
+    transform: translateX(-50%);
+    width: 60mm;
+    padding: 10px;
+    margin: 0;
+    text-align: center;
+    border: 2px solid #000 !important;
+    background-color: #fff !important;
+    color: #000 !important;
+    border-radius: 8px;
+  }
+  #print-area-container img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}
